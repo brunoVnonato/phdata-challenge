@@ -8,11 +8,11 @@ WORKDIR /app
 COPY . .
 
 # Create conda environment into the container
-RUN conda env create -f conda.environment.yml
+RUN conda env create -f conda_environment.yml
 
 # Make the environment active by default
 RUN echo "source activate housing" > ~/.bashrc
-ENV PATHA /opt/conda/envs/housing/bin:$PATH
+ENV PATH=/opt/conda/envs/housing/bin:$PATH
 
 # Expose the port that FastAPI will run on
 EXPOSE 8080
