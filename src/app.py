@@ -1,27 +1,26 @@
-import os
-import json
-import pickle
-import uvicorn
 import logging
+import os
+import pickle
 import warnings
+from typing import List  # noqa: UP035
+
 import pandas as pd
-from typing import Dict, List, Union
-from pydantic import BaseModel
+import uvicorn
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
 # Instantiate Envs
-APP_MODEL_PATH = os.environ['APP_MODEL_PATH']             #os.environ['APP_MODEL_PATH']
-DEMOGRAPHICS_PATH = os.environ['APP_DEMOGRAPHICS_PATH']   #os.environ['APP_DEMOGRAPHICS_PATH']
-FEATURES = os.environ['FEATURES']
+APP_MODEL_PATH = os.environ["APP_MODEL_PATH"]
+DEMOGRAPHICS_PATH = os.environ["APP_DEMOGRAPHICS_PATH"]
+FEATURES = os.environ["FEATURES"]
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
+logger = logging.getLogger(__name__)
+logger.basicConfig(level=logging.INFO, datefmt="%Y-%m-%d %H:%M:%S")
 
 # Initialize FastAPI app
 app = FastAPI()
+
 
 # Bonus: Define the expected payload structure
 class HouseFeatures(BaseModel):
@@ -34,8 +33,10 @@ class HouseFeatures(BaseModel):
     sqft_basement: int
     zipcode: int
 
+
 class HouseBatchInput(BaseModel):
-    houses: List[HouseFeatures]
+    houses: List[HouseFeatures]  # noqa: UP006
+
 
 class InputData(BaseModel):
     bedrooms: int
@@ -57,106 +58,113 @@ class InputData(BaseModel):
     sqft_living15: int
     sqft_lot15: int
 
+
 # For a list of these items (as in your JSON string):
 class InputDataBatch(BaseModel):
-    houses: List[InputData]
+    houses: List[InputData]  # noqa: UP006
 
 
 # Load the model
-model_file = open(APP_MODEL_PATH, 'rb')
-MODEL = pickle.load(model_file)
+with open(APP_MODEL_PATH, "rb") as model_file:  # noqa: PTH123
+    MODEL = pickle.load(model_file)  # noqa: S301
+
 
 # Endpoints
 @app.post("/filtered_prediction/")
 def filtered_prediction(payload: HouseBatchInput):
-    """Handles the inference pipeline"""
-    
+    """Handles the inference pipeline."""
     try:
+        logging.info("Request received!!!")  # noqa: LOG015
 
-        logging.info("Request received!!!")
-        
         # Incoming data
-        message_data=pd.DataFrame()
-        
-        for i,_ in enumerate(payload.houses):
-            
+        message_data = pd.DataFrame()
+
+        for i, _ in enumerate(payload.houses):
             temp_data = pd.DataFrame([payload.houses[i].model_dump()])
-            message_data = pd.concat([message_data,temp_data], ignore_index=True)
+            message_data = pd.concat([message_data, temp_data], ignore_index=True)
 
         # Demographics data
         demo_data = pd.read_csv(DEMOGRAPHICS_PATH)
-        
+
         # Merging
-        merged_data = message_data.merge(demo_data, how="left",
-                                         on="zipcode").drop(columns="zipcode")
-        
-        #Model features
+        merged_data = message_data.merge(demo_data, how="left", on="zipcode").drop(
+            columns="zipcode",
+        )
+
+        # Model features
         features = pd.read_json(FEATURES)
         features = features[0].to_list()
 
         # Make predictions on payload
         pred = MODEL.predict(merged_data[features])
 
-        logging.info(pred)
+        logger.info(pred)
 
-        #prettifying the predictions
-        response = dict()
+        # prettifying the predictions
+        response = {}
         for i in range(len(pred)):
             response[f"ZipCode-{message_data.iloc[i]['zipcode']}"] = f" ${pred[i]}"
-        
-        return response
+
+        return response  # noqa: TRY300
 
     except Exception as e:
-        logging.error(f"Processing failed: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occured during processing") from e
-    
+        logger.exception(f"Processing failed: {e!s}")  # noqa: G004, TRY401
+        raise HTTPException(
+            status_code=500,
+            detail="An error occured during processing",
+        ) from e
+
+
 @app.post("/unfiltered_predict/")
 def unfiltered_prediction(payload: InputDataBatch):
-    """Handles the inference pipeline"""
+    """Handles the inference pipeline."""
     try:
-
-        logging.info("Request received!!!")
+        logger.info("Request received!!!")
 
         # Incoming data
-        message_data=pd.DataFrame()
-        
-        for i,_ in enumerate(payload.houses):
-            logging.info(i)
-            
+        message_data = pd.DataFrame()
+
+        for i, _ in enumerate(payload.houses):
+            logger.info(i)
+
             temp_data = pd.DataFrame([payload.houses[i].model_dump()])
-            message_data = pd.concat([message_data,temp_data], ignore_index=True)
-        
+            message_data = pd.concat([message_data, temp_data], ignore_index=True)
+
         # Demographics data
         demo_data = pd.read_csv(DEMOGRAPHICS_PATH)
 
         # Merging
-        merged_data = message_data.merge(demo_data, how="left",
-                                on="zipcode").drop(columns="zipcode")
-        
-        #Model features
+        merged_data = message_data.merge(demo_data, how="left", on="zipcode").drop(
+            columns="zipcode",
+        )
+
+        # Model features
         features = pd.read_json(FEATURES)
         features = features[0].to_list()
 
         # Make predictions on payload
         pred = MODEL.predict(merged_data[features])
 
-        logging.info(pred)
+        logger.info(pred)
 
-        #prettifying the predictions
-        response = dict()
+        # prettifying the predictions
+        response = {}
         for i in range(len(pred)):
             response[f"ZipCode-{message_data.iloc[i]['zipcode']}"] = f" ${pred[i]}"
-        
-        return response
+
+        return response  # noqa: TRY300
 
     except Exception as e:
-        logging.error(f"Processing failed: {str(e)}")
-        raise HTTPException(status_code=500, detail="An error occured during processing") from e
+        logger.exception(f"Processing failed: {e!s}")  # noqa: G004, TRY401
+        raise HTTPException(
+            status_code=500,
+            detail="An error occured during processing",
+        ) from e
 
 
 if __name__ == "__main__":
-    #Supress warnings
+    # Supress warnings
     warnings.filterwarnings("ignore")
 
-    #Run the FastAPI application
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    # Run the FastAPI application
+    uvicorn.run(app, host="0.0.0.0", port=8080)  # noqa: S104
