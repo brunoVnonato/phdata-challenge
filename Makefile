@@ -7,6 +7,9 @@ run-image-locally:
 update-conda-environment:
 	conda env update --file conda_environment.yml --prune
 
+code-quality:
+	ruff check .
+
 housingapp-test:
 	python3 tests/test_housingapp.pydicke
 
