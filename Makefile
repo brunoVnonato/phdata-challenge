@@ -10,7 +10,7 @@ update-conda-environment:
 code-quality:
 	ruff check .
 
-housingapp-test:
-	python3 tests/test_housingapp.pydicke
+test-endpoints:
+	pytest tests/
 
 

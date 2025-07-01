@@ -1,12 +1,13 @@
 import logging
 import os
 import pickle
+import time
 import warnings
 from typing import List  # noqa: UP035
 
 import pandas as pd
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 
 # Instantiate Envs
@@ -15,15 +16,15 @@ DEMOGRAPHICS_PATH = os.environ["APP_DEMOGRAPHICS_PATH"]
 FEATURES = os.environ["FEATURES"]
 
 # Configure logging
+logging.basicConfig(level=logging.INFO, datefmt="%Y-%m-%d %H:%M:%S")
 logger = logging.getLogger(__name__)
-logger.basicConfig(level=logging.INFO, datefmt="%Y-%m-%d %H:%M:%S")
 
 # Initialize FastAPI app
 app = FastAPI()
 
 
 # Bonus: Define the expected payload structure
-class HouseFeatures(BaseModel):
+class SalesFeatures(BaseModel):
     bedrooms: int
     bathrooms: float
     sqft_living: int
@@ -34,11 +35,11 @@ class HouseFeatures(BaseModel):
     zipcode: int
 
 
-class HouseBatchInput(BaseModel):
-    houses: List[HouseFeatures]  # noqa: UP006
+class SalesBatchInput(BaseModel):
+    houses: List[SalesFeatures]  # noqa: UP006
 
 
-class InputData(BaseModel):
+class UnseenFeatures(BaseModel):
     bedrooms: int
     bathrooms: float
     sqft_living: int
@@ -59,9 +60,9 @@ class InputData(BaseModel):
     sqft_lot15: int
 
 
-# For a list of these items (as in your JSON string):
-class InputDataBatch(BaseModel):
-    houses: List[InputData]  # noqa: UP006
+# For a list of these items:
+class UnseenBatchInput(BaseModel):
+    houses: List[UnseenFeatures]  # noqa: UP006
 
 
 # Load the model
@@ -69,9 +70,31 @@ with open(APP_MODEL_PATH, "rb") as model_file:  # noqa: PTH123
     MODEL = pickle.load(model_file)  # noqa: S301
 
 
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):  # noqa: D417
+    """
+    Middleware that measures the processing time of each HTTP request and adds it to the response headers.
+
+    Parameters
+        request (Request): The incoming HTTP request object.
+        call_next (function): A function that receives the request and returns a response.
+
+    Returns
+        Response: The HTTP response with an added "Response-time" header indicating
+        the time (in seconds) taken to process the request.
+
+    """  # noqa: D407
+    start_time = time.perf_counter()
+    response = await call_next(request)
+    process_time = time.perf_counter() - start_time
+
+    response.headers["Response-time"] = str(process_time)
+    return response
+
+
 # Endpoints
-@app.post("/filtered_prediction/")
-def filtered_prediction(payload: HouseBatchInput):
+@app.post("/sales_prediction/")
+async def filtered_prediction(payload: SalesBatchInput):
     """Handles the inference pipeline."""
     try:
         logging.info("Request received!!!")  # noqa: LOG015
@@ -103,7 +126,7 @@ def filtered_prediction(payload: HouseBatchInput):
         # prettifying the predictions
         response = {}
         for i in range(len(pred)):
-            response[f"ZipCode-{message_data.iloc[i]['zipcode']}"] = f" ${pred[i]}"
+            response[f"ZipCode-{message_data.iloc[i]['zipcode']}"] = f"${pred[i]}"
 
         return response  # noqa: TRY300
 
@@ -115,8 +138,8 @@ def filtered_prediction(payload: HouseBatchInput):
         ) from e
 
 
-@app.post("/unfiltered_predict/")
-def unfiltered_prediction(payload: InputDataBatch):
+@app.post("/unseen_predict/")
+async def unfiltered_prediction(payload: UnseenBatchInput):
     """Handles the inference pipeline."""
     try:
         logger.info("Request received!!!")
@@ -150,7 +173,7 @@ def unfiltered_prediction(payload: InputDataBatch):
         # prettifying the predictions
         response = {}
         for i in range(len(pred)):
-            response[f"ZipCode-{message_data.iloc[i]['zipcode']}"] = f" ${pred[i]}"
+            response[f"ZipCode-{message_data.iloc[i]['zipcode']}"] = f"${pred[i]}"
 
         return response  # noqa: TRY300
 

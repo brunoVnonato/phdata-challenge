@@ -6,6 +6,33 @@ Repository created for the phData Machine Learning Engineer (MLE) challenge.
 
 This repository follows the structure outlined below:
 
+```
+├── conda_environment.yml
+├── create_model.py
+├── data
+│   ├── future_unseen_examples.csv
+│   ├── kc_house_data.csv
+│   └── zipcode_demographics.csv
+├── Dockerfile
+├── LICENSE
+├── Makefile
+├── model
+│   ├── metrics.json
+│   ├── model_features.json
+│   ├── model.pkl
+│   ├── regression_residuals.png
+│   └── regression_scatterplot.png
+├── notebooks
+│   └── exploration.ipynb
+├── presentation
+├── README.md
+├── ruff.toml
+├── src
+│   └── app.py
+└── tests
+    └── test_housingapp.py
+```
+
 # How to use this solution.
 
 ## Building the docker image.

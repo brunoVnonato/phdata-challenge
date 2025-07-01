@@ -1,4 +1,4 @@
-import json  # noqa: INP001
+import json
 import logging
 import os
 import warnings
@@ -15,13 +15,13 @@ logging.basicConfig(level=logging.INFO, datefmt="%Y-%m-%d %H:%M:%S")
 logger = logging.getLogger(__name__)
 
 
-def test_filtered_prediction(url: str, n):
+def test_sales_prediction(url: str, n):
     """
-    Sends a POST request to a prediction API with a batch of unseen data and prints the response.
+    Sends a POST request to a prediction API with a batch of sales data and prints the response.
 
     Args:
         url (str, optional): URL of the prediction endpoint. Defaults to the environment variable "URL_FILTERED_PREDICT".
-        n (int, optional): Number of samples from the unseen dataset to include in the request. Defaults to 3.
+        n (int, optional): Number of samples from the dataset to include in the request. Defaults to 3.
 
     Returns:
         None. Prints the response status and body text from the API request.
@@ -34,20 +34,23 @@ def test_filtered_prediction(url: str, n):
     features = eval(os.getenv("SALES_COLUMN_SELECTION"))  # noqa: S307
     features.remove("price")
     unseen_data_path = os.getenv("UNSEEN_DATA")
-    unseen_data = pd.read_csv(unseen_data_path)
-    unseen_data = unseen_data[features]
+    unseen_data = pd.read_csv(unseen_data_path, dtype={"zipcode": str})
+    sales_data = unseen_data[features]
 
     # Json
-    data_string = unseen_data[:n].to_json(orient="records", force_ascii=True)
+    data_string = sales_data[:n].to_json(orient="records", force_ascii=True)
     data_load = json.loads(data_string)
 
     batch = {"houses": data_load}
 
     r = requests.post(url, json=batch, headers=headers)  # noqa: S113
-    return print(r, r.text)
+
+    return print(
+        f"Status Code:{r.status_code}, Predictions:{r.text}, Response-time: {r.headers['response-time']}",
+    )
 
 
-def test_unfiltered_prediction(url: str, n):
+def test_unseen_prediction(url: str, n):
     """
     Sends a POST request to a prediction API using raw unseen data and prints the response.
 
@@ -63,7 +66,7 @@ def test_unfiltered_prediction(url: str, n):
     headers = {"content-type": "application/json", "Accept-Charset": "UTF-8"}
 
     unseen_data_path = os.getenv("UNSEEN_DATA")
-    unseen_data = pd.read_csv(unseen_data_path)
+    unseen_data = pd.read_csv(unseen_data_path, dtype={"zipcode": str})
 
     # Json
     data_string = unseen_data[:n].to_json(orient="records", force_ascii=True)
@@ -73,7 +76,9 @@ def test_unfiltered_prediction(url: str, n):
 
     # Request
     r = requests.post(url, json=batch, headers=headers)  # noqa: S113
-    return print(r, r.text)
+    return print(
+        f"Status Code:{r.status_code}, Predictions:{r.text}, Response-time: {r.headers['response-time']}",
+    )
 
 
 if __name__ == "__main__":
@@ -81,8 +86,8 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore")
 
     # Requests
-    logger.info("Hard Request")
-    test_filtered_prediction(os.getenv("URL_FILTERED_PREDICT"), 3)
+    logger.info("Sales Request")
+    test_sales_prediction(os.getenv("URL_SALES_PREDICT"), 3)
 
-    logger.info("Soft Request")
-    test_unfiltered_prediction(os.getenv("URL_UNFILTERED_PREDICT"), 3)
+    logger.info("Unseen Request")
+    test_unseen_prediction(os.getenv("URL_UNSEEN_PREDICT"), 3)
