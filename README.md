@@ -27,10 +27,11 @@ This repository follows the structure outlined below:
 ├── presentation
 ├── README.md
 ├── ruff.toml
+├── send_request_housing.py
 ├── src
 │   └── app.py
 └── tests
-    └── test_housingapp.py
+    └── test_requests.py
 ```
 
 # How to use this solution.
@@ -55,17 +56,26 @@ Once the container is up and running, you can send POST requests to test the app
 
 ## Testing the App
 
-To test the application, execute the script inside the `test` folder:
+To test the application, there is two differents ways you can execute the script in the root and send some requests tothe API:
 
 ```
-python3 test_housingapp.py
+python3 send_request_housing.py
 ```
 
 This script performs two POST requests one to each endpoint of the API to validate the application’s behavior.
+
+Other way is to use the spcript inside the folder tests/ running the script as below from the root of the project.
+
+```
+pytest tests
+```
+
+This script is going to run two simple testing functions validating the responses from de API.
 
 ## Next Steps
 
 This application can certainly be improved and extended into a more robust solution. Some potential next steps include:
 
+- MLflow Component.
 - Implementing a CI/CD pipeline with integration and unit tests.
--
+- Migrate solution to the Cloud.
